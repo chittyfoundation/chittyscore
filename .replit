@@ -54,8 +54,9 @@ localPort = 8080
 externalPort = 8080
 
 [[ports]]
-localPort = 39181
+localPort = 38073
 externalPort = 4200
 
 [agent]
 integrations = ["flask_stripe==1.0.0", "python_database==1.0.0", "python_log_in_with_replit==1.0.0"]
+expertMode = true

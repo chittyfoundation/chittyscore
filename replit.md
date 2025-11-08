@@ -10,6 +10,19 @@ This is part of the larger **ChittyOS ecosystem** - a suite of interconnected tr
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+**2025-11-08: Migration to Replit Completed**
+- Successfully migrated ChittyScore Flask app from Replit Agent to standard Replit environment
+- Fixed 404 errors by adding `__init__.py` files to `src/` and `src/chitty_score/` directories for proper Python package imports
+- Verified all API endpoints working correctly:
+  - `/` - API information and endpoints list
+  - `/api/health` - Health check endpoint
+  - `/api/trust/calculate` - Trust score calculation (POST)
+  - `/api/trust/demo/<persona_id>` - Demo personas (alice, bob, charlie)
+- Application running on gunicorn at port 5000, mapped to external port 80
+- Deployment configured for Replit autoscale
+
 ## System Architecture
 
 ### Core Application Structure
