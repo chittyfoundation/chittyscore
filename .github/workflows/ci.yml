@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate wrangler config
+        run: |
+          if [ -f wrangler.toml ]; then
+            echo "wrangler.toml found"
+            cat wrangler.toml
+          fi
+
+      - name: Check for source files
+        run: |
+          find . -name '*.ts' -o -name '*.js' | head -20 || true
