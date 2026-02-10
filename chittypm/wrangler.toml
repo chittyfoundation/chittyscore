@@ -54,3 +54,6 @@ queue = "chittypm-tasks"
 queue = "chittypm-tasks"
 max_batch_size = 10
 max_batch_timeout = 30
+# ChittyTrack observability
+[[tail_consumers]]
+service = "chittytrack"

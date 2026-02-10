@@ -67,3 +67,6 @@ upload = { format = "modules", dir = "dist" }
 # Analytics and monitoring
 [observability]
 enabled = true
+# ChittyTrack observability
+[[tail_consumers]]
+service = "chittytrack"
