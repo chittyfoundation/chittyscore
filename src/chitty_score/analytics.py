@@ -2,7 +2,7 @@
 Advanced trust analytics and insights generation.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Tuple
 import numpy as np
 from dataclasses import dataclass
@@ -33,9 +33,15 @@ class TrustPattern:
     recommendation: str
 
 
+def current_time_like(dt: datetime) -> datetime:
+    """Match current UTC time to the awareness style of the input datetime."""
+    now = datetime.now(timezone.utc)
+    return now if dt.tzinfo else now.replace(tzinfo=None)
+
+
 class TrustAnalytics:
     """Advanced analytics engine for trust data."""
-    
+
     def __init__(self):
         self.risk_thresholds = {
             "identity_verification": 70,
@@ -43,7 +49,7 @@ class TrustAnalytics:
             "outcome_consistency": 75,
             "temporal_stability": 65
         }
-    
+
     async def generate_insights(
         self, 
         entity: TrustEntity, 
@@ -142,7 +148,7 @@ class TrustAnalytics:
         # Analyze activity patterns
         recent_events = [
             e for e in events 
-            if e.timestamp > datetime.utcnow() - timedelta(days=30)
+            if e.timestamp > current_time_like(e.timestamp) - timedelta(days=30)
         ]
         
         if len(recent_events) > 10:
@@ -219,7 +225,7 @@ class TrustAnalytics:
         negative_events = [e for e in events if e.outcome == "negative"]
         recent_negative = [
             e for e in negative_events 
-            if e.timestamp > datetime.utcnow() - timedelta(days=90)
+            if e.timestamp > current_time_like(e.timestamp) - timedelta(days=90)
         ]
         
         if len(recent_negative) > 2:

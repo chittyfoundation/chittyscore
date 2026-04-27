@@ -1,4 +1,4 @@
-# Dockerfile for ChittyOS Score API deployment
+# Dockerfile for ChittyScore API deployment
 
 FROM python:3.11-slim
 
@@ -26,7 +26,7 @@ RUN chown -R chitty:chitty /app
 USER chitty
 
 # Expose port
-EXPOSE 8000
+EXPOSE 5000
 
 # Set environment variables
 ENV PYTHONPATH=/app
@@ -34,7 +34,7 @@ ENV PRODUCTION=true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health')"
 
 # Run the application
-CMD ["gunicorn", "--config", "gunicorn.conf.py", "real_trust_api:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]

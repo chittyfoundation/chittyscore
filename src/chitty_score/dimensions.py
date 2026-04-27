@@ -3,7 +3,7 @@ Six dimensions of trust calculation.
 """
 
 from abc import ABC, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional
 import numpy as np
 
@@ -19,6 +19,12 @@ class TrustDimension(ABC):
     ) -> float:
         """Calculate dimension score (0-100)."""
         pass
+
+
+def current_time_like(dt: datetime) -> datetime:
+    """Match current UTC time to the awareness style of the input datetime."""
+    now = datetime.now(timezone.utc)
+    return now if dt.tzinfo else now.replace(tzinfo=None)
 
 
 class SourceDimension(TrustDimension):
@@ -59,7 +65,7 @@ class TemporalDimension(TrustDimension):
             return 0.0
         
         # Account age
-        account_age_days = (datetime.utcnow() - entity.created_at).days
+        account_age_days = (current_time_like(entity.created_at) - entity.created_at).days
         age_score = min(account_age_days / 365 * 30, 30)
         
         # Event consistency
@@ -77,7 +83,7 @@ class TemporalDimension(TrustDimension):
         
         # Recent activity
         latest_event = max(events, key=lambda e: e.timestamp)
-        days_since_active = (datetime.utcnow() - latest_event.timestamp).days
+        days_since_active = (current_time_like(latest_event.timestamp) - latest_event.timestamp).days
         recency_score = max(0, 20 - days_since_active / 10)
         
         # Long-term positive behavior
@@ -166,7 +172,7 @@ class OutcomeDimension(TrustDimension):
         # Recent outcomes matter more
         recent_events = [
             e for e in events 
-            if e.timestamp > datetime.utcnow() - timedelta(days=90)
+            if e.timestamp > current_time_like(e.timestamp) - timedelta(days=90)
         ]
         if recent_events:
             recent_positive = len([e for e in recent_events if e.outcome == "positive"])

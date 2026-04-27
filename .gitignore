@@ -1,0 +1,16 @@
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+
+# Root-service scratch and editor artifacts
+*.original
+
+# Frontend and Node artifacts in nested projects
+node_modules/
+dist/
+build/

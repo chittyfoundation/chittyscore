@@ -5,7 +5,7 @@ ChittyScore Flask Application
 
 import asyncio
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 from flask import Flask, request, jsonify
@@ -26,6 +26,11 @@ CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 PORT = int(os.getenv('PORT', 5000))
+
+
+def utc_now_iso() -> str:
+    """Return a timezone-aware UTC ISO timestamp."""
+    return datetime.now(timezone.utc).isoformat()
 
 # Dimension weights (must sum to 100%)
 DIMENSION_WEIGHTS = {
@@ -109,7 +114,7 @@ class TrustEngine:
                 }
                 for i in insights[:5]  # Top 5 insights
             ],
-            'calculated_at': datetime.utcnow().isoformat()
+            'calculated_at': utc_now_iso()
         }
 
     def _calculate_people_score(self, scores: Dict[str, float]) -> float:
@@ -195,7 +200,7 @@ def health():
     return jsonify({
         'status': 'healthy',
         'service': 'chittyscore',
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': utc_now_iso()
     })
 
 
