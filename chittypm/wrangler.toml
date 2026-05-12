@@ -27,11 +27,6 @@ command = "npm run build"
 
 [[routes]]
 pattern = "chittypm.yourdomain.com/*"
-
-[observability]
-enabled = true
-
-# R2 bucket for file storage
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "chittypm-storage"
@@ -57,3 +52,18 @@ max_batch_timeout = 30
 # ChittyTrack observability
 [[tail_consumers]]
 service = "chittytrack"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+destinations = ["chittytrack-logs"]
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+destinations = ["chittytrack-traces"]
+persist = false

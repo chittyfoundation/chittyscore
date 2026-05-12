@@ -64,9 +64,20 @@ routes = [
 command = "npm run build"
 upload = { format = "modules", dir = "dist" }
 
-# Analytics and monitoring
+# Analytics and monitoring[[tail_consumers]]
+service = "chittytrack"
+
 [observability]
 enabled = true
-# ChittyTrack observability
-[[tail_consumers]]
-service = "chittytrack"
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+destinations = ["chittytrack-logs"]
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+destinations = ["chittytrack-traces"]
+persist = false

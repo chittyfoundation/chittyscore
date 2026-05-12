@@ -21,7 +21,9 @@
       "Read(//Users/nb/Projects/development/**)",
       "Bash(git init:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cp /home/ubuntu/.claude/checkpoints/chittyscore-2026-04-29.md /home/ubuntu/.claude/checkpoints/chittyscore-latest.md)",
+      "Read(//home/ubuntu/.claude/checkpoints/**)"
     ],
     "deny": []
   }
