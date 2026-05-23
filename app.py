@@ -17,6 +17,7 @@ from src.chitty_score.dimensions import (
     OutcomeDimension, NetworkDimension, JusticeDimension
 )
 from src.chitty_score.analytics import TrustAnalytics
+from src.chitty_score import persistence
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -26,6 +27,9 @@ CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 PORT = int(os.getenv('PORT', 5000))
+
+# Initialize persistence (no-op if DATABASE_URL unset)
+persistence.init_pool(DATABASE_URL)
 
 
 def utc_now_iso() -> str:
@@ -189,6 +193,7 @@ def index():
         'endpoints': {
             'health': '/api/health',
             'calculate': '/api/trust/calculate',
+            'history': '/api/trust/history/<entity_id>',
             'demo_personas': '/api/trust/demo/<persona_id>'
         }
     })
@@ -206,25 +211,38 @@ def health():
 
 @app.route('/api/trust/calculate', methods=['POST'])
 def calculate_trust():
-    """Calculate trust score for an entity."""
+    """Calculate trust score for an entity.
+
+    If `entity.id` resolves to a row in `public.identities` (by DID or
+    chitty_id) and DATABASE_URL is set, the result and events are persisted
+    to `chittyscore.results` / `chittyscore.events`.
+    """
     try:
         data = request.get_json()
-
-        # Parse entity
         entity = TrustEntity(**data['entity'])
-
-        # Parse events
         events = [TrustEvent(**e) for e in data.get('events', [])]
 
-        # Calculate trust (async)
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(engine.calculate_trust(entity, events))
         loop.close()
 
+        persisted = None
+        if persistence.enabled():
+            identity_id = persistence.resolve_identity_id(entity.id)
+            if identity_id is not None:
+                result_id = persistence.persist_result(identity_id, result)
+                event_count = persistence.persist_events(identity_id, events)
+                persisted = {
+                    'result_id': str(result_id),
+                    'identity_id': str(identity_id),
+                    'events_inserted': event_count,
+                }
+
         return jsonify({
             'success': True,
-            'data': result
+            'data': result,
+            'persisted': persisted,
         })
 
     except Exception as e:
@@ -235,6 +253,46 @@ def calculate_trust():
                 'message': str(e)
             }
         }), 400
+
+
+@app.route('/api/trust/history/<entity_id>')
+def trust_history(entity_id: str):
+    """Return recent scoring history for an identity (DID, chitty_id, or UUID)."""
+    if not persistence.enabled():
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'PERSISTENCE_DISABLED',
+                'message': 'DATABASE_URL is not configured',
+            }
+        }), 503
+    try:
+        identity_id = persistence.resolve_identity_id(entity_id)
+        if identity_id is None:
+            return jsonify({
+                'success': False,
+                'error': {
+                    'code': 'IDENTITY_NOT_FOUND',
+                    'message': f'No identity found for {entity_id}',
+                }
+            }), 404
+        rows = persistence.fetch_history(identity_id, limit=20)
+        return jsonify({
+            'success': True,
+            'data': {
+                'identity_id': str(identity_id),
+                'entity_id': entity_id,
+                'history': rows,
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': {
+                'code': 'HISTORY_ERROR',
+                'message': str(e),
+            }
+        }), 500
 
 
 @app.route('/api/trust/demo/<persona_id>')

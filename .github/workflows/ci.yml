@@ -28,14 +28,3 @@ jobs:
       - name: Smoke test
         run: |
           python -m unittest tests.test_smoke
-
-      - name: Validate wrangler config
-        run: |
-          if [ -f wrangler.toml ]; then
-            echo "wrangler.toml found"
-            cat wrangler.toml
-          fi
-
-      - name: Check for source files
-        run: |
-          find . -name '*.ts' -o -name '*.js' | head -20 || true

@@ -59,15 +59,12 @@ npm test        # Tests (if configured)
 ### Deployment
 
 ```bash
-# Cloudflare Workers (edge)
-npm run deploy                    # Uses wrangler.toml
-
 # Docker
 docker build -t chittyscore-api .
-docker run -p 8000:8000 -e DATABASE_URL=$DATABASE_URL chittyscore-api
+docker run -p 5000:5000 -e DATABASE_URL=$DATABASE_URL chittyscore-api
 ```
 
-**Note:** The Dockerfile references `real_trust_api:app` and `gunicorn.conf.py` which don't exist. For Docker, update the CMD to use `main:app` or create the missing files.
+The previous Cloudflare Workers scaffold (`wrangler.toml`, `src/worker.js`, D1 bindings) was deleted — it referenced non-existent files and placeholder DB IDs. The Flask app is the canonical runtime.
 
 ## Core Architecture
 
@@ -104,15 +101,16 @@ The engine in `src/chitty_score/` calculates trust across **6 weighted dimension
 | `src/chitty_score/models.py` | Pydantic models: `TrustEntity`, `TrustEvent`, `Credential`, `Connection` |
 | `src/chitty_score/dimensions.py` | 6 dimension calculators (all async, use numpy) |
 | `src/chitty_score/analytics.py` | `TrustAnalytics` - insight generation, pattern detection |
-| `schema.sql` | PostgreSQL schema (trust_scores, evidence_records, trust_events, etc.) |
-| `packages/chitty-score/` | Mirror of `src/chitty_score/` modules (packaging/distribution copy) |
+| `src/chitty_score/persistence.py` | Postgres persistence layer (Neon, `chittyscore` schema) |
+| `schema.sql` | Postgres schema: `chittyscore.results`, `chittyscore.events` (FK to `public.identities`) |
 
 ### API Endpoints
 
 - `GET /` - Service info
 - `GET /api/health` - Health check
-- `POST /api/trust/calculate` - Calculate trust score (body: `{entity: TrustEntity, events: TrustEvent[]}`)
-- `GET /api/trust/demo/<persona_id>` - Demo personas: `alice`, `bob`, `charlie`
+- `POST /api/trust/calculate` - Calculate trust score (body: `{entity: TrustEntity, events: TrustEvent[]}`). Persists to `chittyscore.results` if `entity.id` resolves to an `identities` row (by DID or chitty_id) and `DATABASE_URL` is set.
+- `GET /api/trust/history/<entity_id>` - Recent scoring history (newest first, limit 20). Requires `DATABASE_URL`.
+- `GET /api/trust/demo/<persona_id>` - Demo personas: `alice`, `bob`, `charlie` (in-memory only, not persisted)
 
 ### Async Pattern
 
@@ -126,22 +124,14 @@ loop.close()
 
 ### Database
 
-- **PostgreSQL** via `DATABASE_URL` env var (Neon in production)
-- **Cloudflare D1** for Workers deployment (wrangler.toml binds `TRUST_DB`)
-- Schema has mixed SQL dialects: `trust_scores` and `trust_events` use PostgreSQL syntax (UUID, JSONB); `evidence_records`, `verification_requests`, `ai_insights`, `api_usage` use SQLite syntax (AUTOINCREMENT, DATETIME). Be aware of this when writing queries.
-
-### Cloudflare Workers Bindings (wrangler.toml)
-
-- `AI` - Cloudflare AI
-- `TRUST_CACHE` (KV) - Score caching
-- `TRUST_DB` (D1) - Trust database
-- `EVIDENCE_STORE` (R2) - Evidence file storage
-- `chittytrack` tail consumer for observability
+- **PostgreSQL** via `DATABASE_URL` env var. Target: ChittyOS-Core Neon project (`restless-grass-40598426`).
+- Tables live under the `chittyscore` Postgres schema to avoid collision with ChittyTrust's `public.trust_scores` (DRL / TY-VY-RY model) in the same DB.
+- Persistence is **optional**: if `DATABASE_URL` is unset, `/api/trust/calculate` still works but `persisted` is `null` and `/api/trust/history/...` returns 503.
+- An `entity.id` only persists if it resolves to a row in `public.identities` (matching `did` or `chitty_id`). Otherwise calculation succeeds with `persisted: null` — no orphan rows.
+- Apply schema: `psql "$DATABASE_URL" -f schema.sql` (validated on Neon branch `br-late-hat-aey8hnjq`).
 
 ## Gotchas
 
-- `requirements.txt` has duplicate entries - deduplicate if editing
-- `packages/chitty-score/` is a copy of `src/chitty_score/` - keep them in sync or consolidate
 - `chittyfinance/` is named "claudefo" in its package.json (Replit origin) - don't be confused by the mismatch
-- Demo persona data is hardcoded in `app.py:get_demo_persona_data()` AND seeded in `schema.sql` - two sources of truth
-- The `schema.sql` INSERT statements use `INSERT OR IGNORE` (SQLite syntax) but the table definitions for `trust_scores`/`trust_events` use PostgreSQL syntax - this file won't run cleanly against either database as-is
+- Demo personas (`alice`/`bob`/`charlie`) in `app.py:get_demo_persona_data()` are **in-memory only**, never persisted — they use string IDs that don't resolve in `identities`.
+- `public.trust_scores` in ChittyOS-Core belongs to **ChittyTrust** (DRL / TY-VY-RY governance scoring). Do not write to it from ChittyScore. ChittyScore writes go to `chittyscore.results`.
